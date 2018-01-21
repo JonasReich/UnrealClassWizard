@@ -1,0 +1,7 @@
+TODO:
+----------------------
+* support for custom default headers and copyright notice in config files next to executable or in $home
+* batch file creation?
+* more default classes (e.g. UserWidget)
+* support for Build.cs files?
+* Merge with Okans module creator tool?
