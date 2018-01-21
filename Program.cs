@@ -30,12 +30,12 @@ namespace UnrealClassWizard
 			string parentTypeName = args.Length > 3 ? args[3] : "PARENT_TYPE";
 
 			// TODO: privatePublicDir is never initialized!
-			if (!TraversePath(targetDir, out string projectName, out var projectDir, out var sourceDir, out var moduleDir, out bool separatePrivatePublic)) return 1;
+			if (!FindDirectories(targetDir, out var projectDir, out var moduleDir, out bool separatePrivatePublic)) return 1;
 
 			// Remove single letter prefix (A, U, F) from newClassName
 			string fileName = newTypeName.Substring(1);
 
-			if (!DeterminePaths(targetDir, separatePrivatePublic, fileName, moduleDir, out string headerPath, out string sourcePath)) return 1;
+			if (!DeterminePaths(targetDir, moduleDir, separatePrivatePublic, fileName, out string headerPath, out string sourcePath)) return 1;
 
 			WriteHeaderContents(System.IO.File.CreateText(headerPath), newTypeName, ref parentTypeName, moduleDir, fileName);
 			WriteSourceContents(moduleDir, fileName, System.IO.File.CreateText(sourcePath));
@@ -43,15 +43,17 @@ namespace UnrealClassWizard
 			return 0;
 		}
 
+		// Determine if direcotry is the project root by checking if it contains any *.uproject files
 		static bool IsProjectRoot(System.IO.DirectoryInfo dir)
 		{
 			return System.IO.Directory.GetFiles(dir.FullName, "*.uproject").Length > 0;
 		}
 
-		static bool TraversePath(System.IO.DirectoryInfo targetDir, out string projectName, out System.IO.DirectoryInfo projectDir, out System.IO.DirectoryInfo sourceDir, out System.IO.DirectoryInfo moduleDir, out bool separatePrivatePublic)
+		// Find the relevant project directories based on the target directory
+		// @returns true on success
+		static bool FindDirectories(System.IO.DirectoryInfo targetDir, out System.IO.DirectoryInfo projectDir, out System.IO.DirectoryInfo moduleDir, out bool separatePrivatePublic)
 		{
-			projectName = "";
-			projectDir = sourceDir = moduleDir = null;
+			projectDir = moduleDir = null;
 			separatePrivatePublic = false;
 
 			if (!targetDir.Exists)
@@ -76,14 +78,9 @@ namespace UnrealClassWizard
 
 				if (IsProjectRoot(currentDir))
 				{
-					projectName = System.IO.Path.GetFileNameWithoutExtension(System.IO.Directory.GetFiles(currentDir.FullName, "*.uproject")[0]);
 					projectDir = currentDir;
 
-					if (lastDir != null && lastDir.Name == "Source")
-					{
-						sourceDir = lastDir;
-					}
-					else
+					if (lastDir == null || lastDir.Name != "Source")
 					{
 						Console.Error.WriteLine("Project source directory not found.");
 						Console.Error.WriteLine("Expected source directory '<project-root>/Source/', found '" + lastDir.FullName + "'.");
@@ -116,7 +113,7 @@ namespace UnrealClassWizard
 			return true;
 		}
 
-		static bool DeterminePaths(System.IO.DirectoryInfo targetDir, bool separatePrivatePublic, string fileName, System.IO.DirectoryInfo moduleDir, out string headerPath, out string sourcePath)
+		static bool DeterminePaths(System.IO.DirectoryInfo targetDir, System.IO.DirectoryInfo moduleDir, bool separatePrivatePublic, string fileName, out string headerPath, out string sourcePath)
 		{
 			headerPath = sourcePath = "";
 
