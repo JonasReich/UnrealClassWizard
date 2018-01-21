@@ -17,6 +17,32 @@ namespace UnrealClassWizard
 			Console.WriteLine("UnrealClassWizard.exe <target-directory> <new-type-name> [<parent-type>]");
 		}
 
+		static int Main(string[] args)
+		{
+			if (args.Length < MIN_ARG_COUNT + 1)
+			{
+				Console.Error.WriteLine("UnrealClassWizard requires at least " + MIN_ARG_COUNT + " parameters.");
+				PrintHelp();
+				return 1;
+			}
+			var targetDir = new System.IO.DirectoryInfo(System.IO.Path.GetFullPath(args[1]));
+			string newTypeName = args[2];
+			string parentTypeName = args.Length > 3 ? args[3] : "PARENT_TYPE";
+
+			// TODO: privatePublicDir is never initialized!
+			if (!TraversePath(targetDir, out string projectName, out var projectDir, out var sourceDir, out var moduleDir, out bool separatePrivatePublic)) return 1;
+
+			// Remove single letter prefix (A, U, F) from newClassName
+			string fileName = newTypeName.Substring(1);
+
+			if (!DeterminePaths(targetDir, separatePrivatePublic, fileName, moduleDir, out string headerPath, out string sourcePath)) return 1;
+
+			WriteHeaderContents(System.IO.File.CreateText(headerPath), newTypeName, ref parentTypeName, moduleDir, fileName);
+			WriteSourceContents(moduleDir, fileName, System.IO.File.CreateText(sourcePath));
+
+			return 0;
+		}
+
 		static bool IsProjectRoot(System.IO.DirectoryInfo dir)
 		{
 			return System.IO.Directory.GetFiles(dir.FullName, "*.uproject").Length > 0;
@@ -74,7 +100,7 @@ namespace UnrealClassWizard
 						return false;
 					}
 
-					if(thirdToLastDir != null && (thirdToLastDir.Name == "Public" || thirdToLastDir.Name == "Private"))
+					if (thirdToLastDir != null && (thirdToLastDir.Name == "Public" || thirdToLastDir.Name == "Private"))
 					{
 						separatePrivatePublic = true;
 					}
@@ -97,11 +123,11 @@ namespace UnrealClassWizard
 			if (separatePrivatePublic)
 			{
 				string trail = targetDir.FullName.Replace(moduleDir.FullName, "");
-				if(trail.StartsWith("\\Public"))
+				if (trail.StartsWith("\\Public"))
 				{
 					trail = trail.Substring(7);
 				}
-				else if(trail.StartsWith("\\Private"))
+				else if (trail.StartsWith("\\Private"))
 				{
 					trail = trail.Substring(8);
 				}
@@ -145,27 +171,19 @@ namespace UnrealClassWizard
 			return true;
 		}
 
-		static int Main(string[] args)
+
+		private static void WriteSourceContents(System.IO.DirectoryInfo moduleDir, string fileName, System.IO.StreamWriter targetSourceFile)
 		{
-			if (args.Length < MIN_ARG_COUNT + 1)
-			{
-				Console.Error.WriteLine("UnrealClassWizard requires at least " + MIN_ARG_COUNT + " parameters.");
-				PrintHelp();
-				return 1;
-			}
-			var targetDir = new System.IO.DirectoryInfo(System.IO.Path.GetFullPath(args[1]));
-			string newTypeName = args[2];
-			string parentTypeName = args.Length > 3 ? args[3] : "PARENT_TYPE";
+			targetSourceFile.WriteLine("// " + COPYRIGHT);
+			targetSourceFile.WriteLine();
+			targetSourceFile.WriteLine("#include \"" + moduleDir.Name + ".h\"");
+			targetSourceFile.WriteLine("#include \"" + fileName + ".h\"");
+			targetSourceFile.WriteLine();
+			targetSourceFile.Flush();
+		}
 
-			// TODO: privatePublicDir is never initialized!
-			if (!TraversePath(targetDir, out string projectName, out var projectDir, out var sourceDir, out var moduleDir, out bool separatePrivatePublic)) return 1;
-
-			// Remove single letter prefix (A, U, F) from newClassName
-			string fileName = newTypeName.Substring(1);
-
-			if (!DeterminePaths(targetDir, separatePrivatePublic, fileName, moduleDir, out string headerPath, out string sourcePath)) return 1;
-
-			var targetHeaderFile = System.IO.File.CreateText(headerPath);
+		private static void WriteHeaderContents(System.IO.StreamWriter targetHeaderFile, string newTypeName, ref string parentTypeName, System.IO.DirectoryInfo moduleDir, string fileName)
+		{
 			targetHeaderFile.WriteLine("// " + COPYRIGHT);
 			targetHeaderFile.WriteLine();
 			targetHeaderFile.WriteLine("#pragma once");
@@ -176,26 +194,70 @@ namespace UnrealClassWizard
 
 			targetHeaderFile.WriteLine("#include \"" + fileName + ".generated.h\"");
 			targetHeaderFile.WriteLine();
-			targetHeaderFile.WriteLine("/**");
-			targetHeaderFile.WriteLine(" * ");
-			targetHeaderFile.WriteLine(" */");
-			targetHeaderFile.WriteLine("UCLASS()");
-			targetHeaderFile.WriteLine("class " + moduleDir.Name.ToUpper() + "_API " + newTypeName + " : public " + parentTypeName);
-			targetHeaderFile.WriteLine("{");
-			targetHeaderFile.WriteLine("\tGENERATED_BODY()");
-			targetHeaderFile.WriteLine("public:");
-			targetHeaderFile.WriteLine();
-			targetHeaderFile.WriteLine("};");
-			targetHeaderFile.Flush();
 
-			var targetSourceFile = System.IO.File.CreateText(sourcePath);
-			targetSourceFile.WriteLine("// " + COPYRIGHT);
-			targetSourceFile.WriteLine();
-			targetSourceFile.WriteLine("#include \"" + moduleDir.Name + ".h\"");
-			targetSourceFile.WriteLine("#include \"" + fileName + ".h\"");
-			targetSourceFile.WriteLine();
-			targetSourceFile.Flush();
-			return 0;
+			if (IsNewtypeUnrealClass(newTypeName, ref parentTypeName))
+			{
+				targetHeaderFile.WriteLine("/**");
+				targetHeaderFile.WriteLine(" * ");
+				targetHeaderFile.WriteLine(" */");
+				targetHeaderFile.WriteLine("UCLASS()");
+				targetHeaderFile.WriteLine("class " + moduleDir.Name.ToUpper() + "_API " + newTypeName + " : public " + parentTypeName);
+				targetHeaderFile.WriteLine("{");
+				targetHeaderFile.WriteLine("\tGENERATED_BODY()");
+				targetHeaderFile.WriteLine("public:");
+				targetHeaderFile.WriteLine();
+				targetHeaderFile.WriteLine("};");
+			}
+			else if (newTypeName.StartsWith("E"))
+			{
+				// Enum
+				if (!String.IsNullOrEmpty(parentTypeName))
+					Console.Error.WriteLine("Enum types don't support inheritance. Ignoring <parent-type> parameter.");
+
+				targetHeaderFile.WriteLine("/**");
+				targetHeaderFile.WriteLine(" * ");
+				targetHeaderFile.WriteLine(" */");
+				targetHeaderFile.WriteLine("UENUM()");
+				targetHeaderFile.WriteLine("enum class " + newTypeName + " : uint8 ");
+				targetHeaderFile.WriteLine("{");
+				targetHeaderFile.WriteLine();
+				targetHeaderFile.WriteLine("};");
+			}
+			else if (newTypeName.StartsWith("F"))
+			{
+				// Struct
+				targetHeaderFile.WriteLine("/**");
+				targetHeaderFile.WriteLine(" * ");
+				targetHeaderFile.WriteLine(" */");
+				targetHeaderFile.WriteLine("USTRUCT()");
+				targetHeaderFile.WriteLine("struct " + newTypeName + (String.IsNullOrEmpty(parentTypeName) ? "" : (parentTypeName + " : ")));
+				targetHeaderFile.WriteLine("{");
+				targetHeaderFile.WriteLine("\tGENERATED_BODY()");
+				targetHeaderFile.WriteLine();
+				targetHeaderFile.WriteLine("};");
+			}
+			targetHeaderFile.Flush();
+		}
+
+		private static bool IsNewtypeUnrealClass(string newTypeName, ref string parentTypeName)
+		{
+			bool newTypeIsClass = true;
+			if (newTypeName.StartsWith("U"))
+			{
+				if (String.IsNullOrEmpty(parentTypeName))
+					parentTypeName = "UObject";
+			}
+			else if (newTypeName.StartsWith("A"))
+			{
+				if (String.IsNullOrEmpty(parentTypeName))
+					parentTypeName = "AActor";
+			}
+			else
+			{
+				newTypeIsClass = false;
+			}
+
+			return newTypeIsClass;
 		}
 	}
 }
