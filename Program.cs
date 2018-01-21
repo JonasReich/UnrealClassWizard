@@ -1,8 +1,6 @@
-﻿#define __DEBUG
-
+﻿
 using System;
-using System.Text.RegularExpressions;
-using System.Collections.Generic;
+using System.IO;
 
 // This is an atempt to recreate UE4s class wizard, that can be called from the command line.
 namespace UnrealClassWizard
@@ -25,7 +23,7 @@ namespace UnrealClassWizard
 				PrintHelp();
 				return 1;
 			}
-			var targetDir = new System.IO.DirectoryInfo(System.IO.Path.GetFullPath(args[1]));
+			var targetDir = new DirectoryInfo(Path.GetFullPath(args[1]));
 			string newTypeName = args[2];
 			string parentTypeName = args.Length > 3 ? args[3] : "";
 
@@ -37,8 +35,8 @@ namespace UnrealClassWizard
 
 			if (!DeterminePaths(targetDir, moduleDir, separatePrivatePublic, fileName, out string headerPath, out string sourcePath)) return 1;
 
-			WriteHeaderContents(System.IO.File.CreateText(headerPath), newTypeName, ref parentTypeName, moduleDir, fileName);
-			WriteSourceContents(moduleDir, fileName, System.IO.File.CreateText(sourcePath));
+			WriteHeaderContents(File.CreateText(headerPath), newTypeName, ref parentTypeName, moduleDir, fileName);
+			WriteSourceContents(moduleDir, fileName, File.CreateText(sourcePath));
 
 			Console.WriteLine("Created new file: " + headerPath);
 			Console.WriteLine("Created new file: " + sourcePath);
@@ -47,14 +45,14 @@ namespace UnrealClassWizard
 		}
 
 		// Determine if direcotry is the project root by checking if it contains any *.uproject files
-		static bool IsProjectRoot(System.IO.DirectoryInfo dir)
+		static bool IsProjectRoot(DirectoryInfo dir)
 		{
-			return System.IO.Directory.GetFiles(dir.FullName, "*.uproject").Length > 0;
+			return Directory.GetFiles(dir.FullName, "*.uproject").Length > 0;
 		}
 
 		// Find the relevant project directories based on the target directory
 		// @returns true on success
-		static bool FindDirectories(System.IO.DirectoryInfo targetDir, out System.IO.DirectoryInfo projectDir, out System.IO.DirectoryInfo moduleDir, out bool separatePrivatePublic)
+		static bool FindDirectories(DirectoryInfo targetDir, out DirectoryInfo projectDir, out DirectoryInfo moduleDir, out bool separatePrivatePublic)
 		{
 			projectDir = moduleDir = null;
 			separatePrivatePublic = false;
@@ -71,7 +69,7 @@ namespace UnrealClassWizard
 				return false;
 			}
 
-			System.IO.DirectoryInfo currentDir = targetDir, lastDir = null, secondToLastDir = null, thirdToLastDir = null;
+			DirectoryInfo currentDir = targetDir, lastDir = null, secondToLastDir = null, thirdToLastDir = null;
 			while (currentDir.Parent != null)
 			{
 				thirdToLastDir = secondToLastDir;
@@ -116,7 +114,7 @@ namespace UnrealClassWizard
 			return true;
 		}
 
-		static bool DeterminePaths(System.IO.DirectoryInfo targetDir, System.IO.DirectoryInfo moduleDir, bool separatePrivatePublic, string fileName, out string headerPath, out string sourcePath)
+		static bool DeterminePaths(DirectoryInfo targetDir, DirectoryInfo moduleDir, bool separatePrivatePublic, string fileName, out string headerPath, out string sourcePath)
 		{
 			headerPath = sourcePath = "";
 
@@ -157,12 +155,12 @@ namespace UnrealClassWizard
 				return false;
 			}
 
-			if ((new System.IO.FileInfo(headerPath)).Exists)
+			if ((new FileInfo(headerPath)).Exists)
 			{
 				Console.Error.WriteLine("Header file '" + headerPath + "' already exists.");
 				return false;
 			}
-			else if ((new System.IO.FileInfo(sourcePath)).Exists)
+			else if ((new FileInfo(sourcePath)).Exists)
 			{
 				Console.Error.WriteLine("Source file '" + sourcePath + "' already exists.");
 				return false;
@@ -172,7 +170,7 @@ namespace UnrealClassWizard
 		}
 
 
-		private static void WriteSourceContents(System.IO.DirectoryInfo moduleDir, string fileName, System.IO.StreamWriter targetSourceFile)
+		private static void WriteSourceContents(DirectoryInfo moduleDir, string fileName, StreamWriter targetSourceFile)
 		{
 			targetSourceFile.WriteLine("// " + COPYRIGHT);
 			targetSourceFile.WriteLine();
@@ -182,7 +180,7 @@ namespace UnrealClassWizard
 			targetSourceFile.Flush();
 		}
 
-		private static void WriteHeaderContents(System.IO.StreamWriter targetHeaderFile, string newTypeName, ref string parentTypeName, System.IO.DirectoryInfo moduleDir, string fileName)
+		private static void WriteHeaderContents(StreamWriter targetHeaderFile, string newTypeName, ref string parentTypeName, DirectoryInfo moduleDir, string fileName)
 		{
 			targetHeaderFile.WriteLine("// " + COPYRIGHT);
 			targetHeaderFile.WriteLine();
