@@ -195,7 +195,7 @@ namespace UnrealClassWizard
 			targetHeaderFile.WriteLine("#include \"" + fileName + ".generated.h\"");
 			targetHeaderFile.WriteLine();
 
-			if (IsNewtypeUnrealClass(newTypeName, ref parentTypeName))
+			if (IsUnrealClass(newTypeName, ref parentTypeName))
 			{
 				targetHeaderFile.WriteLine("/**");
 				targetHeaderFile.WriteLine(" * ");
@@ -239,15 +239,17 @@ namespace UnrealClassWizard
 			targetHeaderFile.Flush();
 		}
 
-		private static bool IsNewtypeUnrealClass(string newTypeName, ref string parentTypeName)
+		// Determines if given type name indicates that it's a UObject or AActor subtype.
+		// If this is the case and the parentType is not set, it's set to either UObject or AActor respectively
+		private static bool IsUnrealClass(string typeName, ref string parentTypeName)
 		{
 			bool newTypeIsClass = true;
-			if (newTypeName.StartsWith("U"))
+			if (typeName.StartsWith("U"))
 			{
 				if (String.IsNullOrEmpty(parentTypeName))
 					parentTypeName = "UObject";
 			}
-			else if (newTypeName.StartsWith("A"))
+			else if (typeName.StartsWith("A"))
 			{
 				if (String.IsNullOrEmpty(parentTypeName))
 					parentTypeName = "AActor";
