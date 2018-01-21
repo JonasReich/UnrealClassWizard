@@ -1,4 +1,6 @@
 ﻿
+// (c) 2018, Jonas Reich
+
 using System;
 using System.IO;
 
