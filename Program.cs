@@ -27,7 +27,7 @@ namespace UnrealClassWizard
 			}
 			var targetDir = new System.IO.DirectoryInfo(System.IO.Path.GetFullPath(args[1]));
 			string newTypeName = args[2];
-			string parentTypeName = args.Length > 3 ? args[3] : "PARENT_TYPE";
+			string parentTypeName = args.Length > 3 ? args[3] : "";
 
 			// TODO: privatePublicDir is never initialized!
 			if (!FindDirectories(targetDir, out var projectDir, out var moduleDir, out bool separatePrivatePublic)) return 1;
@@ -39,6 +39,9 @@ namespace UnrealClassWizard
 
 			WriteHeaderContents(System.IO.File.CreateText(headerPath), newTypeName, ref parentTypeName, moduleDir, fileName);
 			WriteSourceContents(moduleDir, fileName, System.IO.File.CreateText(sourcePath));
+
+			Console.WriteLine("Created new file: " + headerPath);
+			Console.WriteLine("Created new file: " + sourcePath);
 
 			return 0;
 		}
