@@ -19,15 +19,15 @@ namespace UnrealClassWizard
 
 		static int Main(string[] args)
 		{
-			if (args.Length < MIN_ARG_COUNT + 1)
+			if (args.Length < MIN_ARG_COUNT)
 			{
 				Console.Error.WriteLine("UnrealClassWizard requires at least " + MIN_ARG_COUNT + " parameters.");
 				PrintHelp();
 				return 1;
 			}
-			var targetDir = new DirectoryInfo(Path.GetFullPath(args[1]));
-			string newTypeName = args[2];
-			string parentTypeName = args.Length > 3 ? args[3] : "";
+			var targetDir = new DirectoryInfo(Path.GetFullPath(args[0]));
+			string newTypeName = args[1];
+			string parentTypeName = args.Length > 3 ? args[2] : "";
 
 			// TODO: privatePublicDir is never initialized!
 			if (!FindDirectories(targetDir, out var projectDir, out var moduleDir, out bool separatePrivatePublic)) return 1;
