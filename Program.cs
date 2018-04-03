@@ -25,7 +25,8 @@ namespace UnrealClassWizard
 				PrintHelp();
 				return 1;
 			}
-			var targetDir = new DirectoryInfo(Path.GetFullPath(args[0]));
+
+            var targetDir = new DirectoryInfo(Path.GetFullPath(args[0].TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)));
 			string newTypeName = args[1];
 			string parentTypeName = args.Length > 3 ? args[2] : "";
 
@@ -71,10 +72,12 @@ namespace UnrealClassWizard
 				return false;
 			}
 
-			DirectoryInfo currentDir = targetDir, lastDir = null, secondToLastDir = null, thirdToLastDir = null;
+			DirectoryInfo currentDir = targetDir, lastDir = null, secondToLastDir = null, thirdToLastDir = null, fourthToLastDir = null,
+                privatePublicDir = null;
 			while (currentDir.Parent != null)
 			{
-				thirdToLastDir = secondToLastDir;
+                fourthToLastDir = thirdToLastDir;
+                thirdToLastDir = secondToLastDir;
 				secondToLastDir = lastDir;
 				lastDir = currentDir;
 				currentDir = currentDir.Parent;
@@ -83,24 +86,31 @@ namespace UnrealClassWizard
 				{
 					projectDir = currentDir;
 
-					if (lastDir == null || lastDir.Name != "Source")
+					if (lastDir == null || (lastDir.Name != "Source" && lastDir.Name != "Plugins"))
 					{
 						Console.Error.WriteLine("Project source directory not found.");
 						Console.Error.WriteLine("Expected source directory '<project-root>/Source/', found '" + lastDir.FullName + "'.");
 						return false;
 					}
 
-					if (secondToLastDir != null)
+					if (lastDir.Name == "Source" && secondToLastDir != null)
 					{
 						moduleDir = secondToLastDir;
-					}
+                        privatePublicDir = thirdToLastDir;
+
+                    }
+                    else if(lastDir.Name == "Plugins" && thirdToLastDir != null)
+                    {
+                        moduleDir = thirdToLastDir;
+                        privatePublicDir = fourthToLastDir;
+                    }
 					else
 					{
 						Console.Error.WriteLine("No module directory found. Please specify a target path that is part of a module.");
 						return false;
 					}
 
-					if (thirdToLastDir != null && (thirdToLastDir.Name == "Public" || thirdToLastDir.Name == "Private"))
+					if (privatePublicDir != null && (privatePublicDir.Name == "Public" || privatePublicDir.Name == "Private"))
 					{
 						separatePrivatePublic = true;
 					}
@@ -142,8 +152,8 @@ namespace UnrealClassWizard
 			}
 			else
 			{
-				headerPath = targetDir.FullName + fileName + ".h";
-				sourcePath = targetDir.FullName + fileName + ".cpp";
+				headerPath = targetDir.FullName + "\\" + fileName + ".h";
+				sourcePath = targetDir.FullName + "\\" + fileName + ".cpp";
 			}
 
 			if (String.IsNullOrEmpty(headerPath))
